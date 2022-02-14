@@ -1,14 +1,20 @@
-# Chapter 1: Simple abstract and concrete Interpreter
+# 系列1: 简单的abstract and concrete Interpreter
 
-Intro toy interpreter and linter in haskell
+这个系列的文章会用haskell写点好玩而且简单的abstract interpreter(linter)和concrete interpreter(interpreter).
 
-* [Chapter 1: Simple abstract and concrete Interpreter](https://github.com/soulomoon/arith/tree/master/arith1)
-* [Chapter 2: Empowering the interpreter with mtl](https://github.com/soulomoon/arith/tree/master/arith2)
-* [Chapter 3: Extension to the interpreter with adi](https://github.com/soulomoon/arith/tree/master/arith3)
+* 系列1: 简单的abstract and concrete Interpreter
+* 系列2: 用mtl来增强interpreter
+* 系列3: 用adi来写interpreter的extension
 
-## Simple concrete interpreter
+系列1的代码可以见[github源代码](https://github.com/soulomoon/arith/tree/master/arith1)
 
-The simplest possible arith interpreter in its simplest form written with pure algebraic data type and simple recursive decent.
+## 语言
+
+前面的目标语言非常简单。仅支持乘法和除法，还有一个除以0的Exception以减少工作量。
+
+## 简单的concrete interpreter
+
+首先用algebraic data type和simple recursive decent写出最简单的arith interpreter。
 
 ```haskell
 data Expr =
@@ -22,9 +28,9 @@ eval (Div x y) = eval x `div` eval y
 eval (Lit a) = a
 ```
 
-## Simple abstract interpreter
+## 简单的abstract interpreter
 
-We now can add an abstract interpreter to the story. It detect naive divide by zero error by performing a symbolic execution, and return `Symbol` as the final result.
+同样用最简单的方式写出一个linter. 能检查出最简单除以0的错误.
 
 ```haskell
 data Symbol = Zero | NotZero | NotKnown deriving (Show, Eq)
@@ -44,9 +50,7 @@ lint (Lit a) = if a == 0 then Zero else NotZero
 
 ## Class based polymorphic
 
-In above, we see that `eval` and `lint` share the same structure: performing the operation on the results of sub terms.
-And in both cases we need to eval `Mul` and `Div` and `Lit`.
-This is a sign of that ad-hoc polymorphism can be perform. Then we can use type class.
+可以看到`eval`和`lint`的结构都非常相似，稍微用type class用做一个ad-hoc polymorphism。
 
 ```haskell
 class Interpret v where
@@ -72,11 +76,39 @@ instance Interpret Symbol where
     evalLit a = if a == 0 then Zero else NotZero
 ```
 
-It need type annotation to differ concrete interpretation from symbolic interpretation. But Instead of showing the full type annotation we can use `TypeApplications` extension to simplify it.
+这里我们区分linter和interpreter的方式就是注明一下类型，我们会用`TypeApplications`来简化这个过程，避免写出完整的类型。
 
 ```haskell
 execEval :: Expr -> IO ()
 execEval = print . eval @Int
 execLint :: Expr -> IO ()
 execLint = print . eval @Symbol
+
+main :: IO ()
+main = do
+    print "hello"
+    execEval $ Lit 1
+    execEval $ Mul (Lit 1) (Lit 2)
+    execLint $ Mul (Lit 1) (Lit 2)
+
+    execLint $ Div (Lit 1) (Lit 0)
+    execLint $ Div (Lit 1) (Lit 0)
+    execLint $ Mul (Div (Lit 1) (Lit 0)) (Div (Lit 1) (Lit 0))
+    print "End"
+```
+
+然后我们可以来跑一下
+
+
+```bash
+❯ cabal run
+Up to date
+"hello"
+NotZero
+NotZero
+NotZero
+NotKnown
+NotKnown
+NotKnown
+"End"
 ```

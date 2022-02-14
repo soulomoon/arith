@@ -41,8 +41,8 @@ execLint = print . eval @Symbol
 main :: IO ()
 main = do
     print "hello"
-    execLint $ Lit 1
-    execLint $ Mul (Lit 1) (Lit 2)
+    execEval $ Lit 1
+    execEval $ Mul (Lit 1) (Lit 2)
     execLint $ Mul (Lit 1) (Lit 2)
 
     execLint $ Div (Lit 1) (Lit 0)
