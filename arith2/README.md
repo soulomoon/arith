@@ -1,4 +1,4 @@
-# Chapter 2: Empowering the interpreter
+# Chapter 2: Empowering the interpreter with mtl
 
 In chapter1, we implement a very naive(useless) abstract and concrete interpreter.
 We are empowering it with functionalities to perform various effectful operations.
