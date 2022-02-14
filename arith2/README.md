@@ -82,7 +82,7 @@ instance (MonadExec m) => Interpret m Int where
     evalLit = hoistOut1 id
 ```
 
-In the concrete monad stack, we can stack a `ReaderT` on the top full fill the constraint.
+In the concrete monad stack, we stack a `ReaderT` on the top to full fill the constraint.
 
 ```haskell
 type ValueExec = ReaderT SrcSpan (ExceptT (Exception SrcSpan) Identity)

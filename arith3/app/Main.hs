@@ -10,11 +10,11 @@
 
 module Main where
 import           Control.Arrow                  ( (>>>) )
-import Control.Monad.Except
-import Control.Monad.RWS
-import Control.Monad.Writer
-import Control.Monad.Identity
-import Control.Monad.Reader (ReaderT (runReaderT))
+import           Control.Monad.Except
+import           Control.Monad.Identity
+import           Control.Monad.RWS
+import           Control.Monad.Reader           ( ReaderT(runReaderT) )
+import           Control.Monad.Writer
 
 data Expr =
     Mul Expr Expr
@@ -30,8 +30,8 @@ hoistOut1 = (.) return
 hoistOut2 :: Monad m => (v -> v -> v) -> (v -> v -> m v)
 hoistOut2 = (.) hoistOut1
 
-hoistArgs :: forall m a b c. Monad m => (a -> b -> m c) -> (m a -> m b -> m c)
-hoistArgs f a b = do aa <- a; bb <- b; f aa bb
+hoistArgs :: Monad m => (a -> b -> m c) -> (m a -> m b -> m c)
+hoistArgs f a b = do aa <- a; b >>= f aa 
 
 class (Monad m) => Interpret m v where
     eval :: (Expr -> m v) -> Expr -> m v
@@ -44,8 +44,18 @@ class (Monad m) => Interpret m v where
     evalLit :: Int -> m v
 
 newtype SrcSpan = SrcSpan Expr deriving (Show)
-type MonadExec m =  (MonadIO m, MonadReader SrcSpan m,  MonadError (Exception SrcSpan) m, Monad m)
-type MonadLint m =  (MonadIO m, MonadReader SrcSpan m, MonadWriter [Exception SrcSpan] m, Monad m)
+type MonadExec m
+    = ( MonadIO m
+      , MonadReader SrcSpan m
+      , MonadError (Exception SrcSpan) m
+      , Monad m
+      )
+type MonadLint m
+    = ( MonadIO m
+      , MonadReader SrcSpan m
+      , MonadWriter [Exception SrcSpan] m
+      , Monad m
+      )
 
 instance (MonadExec m) => Interpret m Int where
     evalMul = hoistOut2 (*)
@@ -57,9 +67,8 @@ instance (MonadLint m) => Interpret m Symbol where
     evalMul xx yy | xx == NotKnown || yy == NotKnown = return NotKnown
                   | xx == Zero || yy == Zero         = return Zero
                   | otherwise                        = return NotZero
-    evalDiv x y =
-        if y == Zero
-        then ask >>= writer . (NotKnown,) . return . ExceptDivByZero
+    evalDiv x y = if y == Zero
+        then ask >>= writer . (NotKnown, ) . return . ExceptDivByZero
         else return x
     evalLit a = return $ if a == 0 then Zero else NotZero
 
@@ -82,10 +91,12 @@ initSrc :: SrcSpan
 initSrc = SrcSpan (Lit 0)
 
 execEval :: Expr -> IO ()
-execEval expr = print =<< runExceptT ((`runReaderT` initSrc) $ extendedEval @ValueExec @Int expr)
+execEval expr = print =<< runExceptT
+    ((`runReaderT` initSrc) $ extendedEval @ValueExec @Int expr)
 
 execLint :: Expr -> IO ()
-execLint expr = print =<< runWriterT ((`runReaderT` initSrc) $ extendedEval @ValueLint @Symbol expr)
+execLint expr = print =<< runWriterT
+    ((`runReaderT` initSrc) $ extendedEval @ValueLint @Symbol expr)
 
 main :: IO ()
 main = do

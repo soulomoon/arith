@@ -6,8 +6,8 @@ In this chapter we are enhancing the interpreter using technique in paper [Abstr
 
 ## Explicit recursion
 
-The evaluation should be revised explicit recursion style.
-It open a window for injecting additional layer into the evaluation process.
+The evaluation should be revised to use explicit recursion style.
+It opens a window for injecting additional layer into the evaluation process.
 
 ```haskell
 eval :: (Expr -> m v) -> Expr -> m v
@@ -21,7 +21,7 @@ To obtain the old plain evaluator, we can just `fix eval` where fix the y combin
 ## Extension to insert the source span into context
 
 Inserting the source span into context (more specifically the monad reader) could be written as an extension in a combinator style.
-First some handy type synonym
+First some handy type synonym to avoid lengthy typing.
 
 ```haskell
 type Evaluator m v = Expr -> m v
