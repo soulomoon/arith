@@ -1,7 +1,7 @@
 # Chapter 2: Empowering the interpreter with mtl
 
 In chapter1, we implement a very naive(useless) abstract and concrete interpreter.
-We are empowering it with functionalities to perform various effectful operations.
+We are empowering it with functionalities to perform various effectful operations in mtl-style.
 The mtl-style technique can be found in the famous paper [Typed taggles final interpreters](https://okmij.org/ftp/tagless-final/course/lecture.pdf)
 
 ## Wrap output under monad
