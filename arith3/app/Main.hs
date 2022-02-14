@@ -9,7 +9,6 @@
 {-# LANGUAGE TupleSections #-}
 
 module Main where
-import           Control.Arrow                  ( (>>>) )
 import           Control.Monad.Except
 import           Control.Monad.Identity
 import           Control.Monad.RWS
@@ -107,6 +106,6 @@ main = do
 
     -- execLint $ Div (Lit 1) (Lit 0)
     -- execLint $ Div (Lit 1) (Lit 0)
-    execLint $ Mul (Div (Lit 1) (Lit 0)) (Div (Lit 2) (Lit 0))
+    execEval $ Mul (Div (Lit 1) (Lit 0)) (Div (Lit 2) (Lit 0))
     print "End"
 

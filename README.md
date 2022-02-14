@@ -9,7 +9,7 @@ Intro toy interpreter and linter in haskell
 ## Language
 
 The target language is rather simple. It support multiplication and division in Int. And would have only exception that that is divide by Zero.
-Since the focus is in the technique of writing interpreter in haskell in an extendible faction rather than language features.
+Since the focus is in the technique of writing interpreter in haskell in an extendible manner rather than language features.
 
 ```haskell
 data Expr =
