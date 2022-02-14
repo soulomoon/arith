@@ -17,3 +17,8 @@ data Expr =
     | Div Expr Expr
     | Lit Int
 ```
+
+## Implementation
+
+The implementation would be short and concise, now each of which is shorter than 100 lines of code.
+And I would use language extension aggressively to enhance haskell, so the code would be minimal.
