@@ -1,0 +1,2 @@
+packages: ./arith1/test.cabal ./arith2/test.cabal ./arith3/test.cabal
+    ./arith_recursion/test.cabal ./arith_tagless/test.cabal
