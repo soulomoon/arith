@@ -1,4 +1,4 @@
-# arith
+# Arith
 
 Intro toy interpreter and linter in haskell
 
