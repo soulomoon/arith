@@ -1,4 +1,4 @@
-# Chapter 3: Extension to the interpreter
+# Chapter 3: Extension to the interpreter with adi
 
 In the last chapter, we implement an extendible effectful interpreter in mtl style.
 In this chapter we are enhancing the interpreter using technique in paper [Abstracting Definitional Interpreters
