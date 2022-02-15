@@ -98,14 +98,5 @@ execLint expr = print =<< runWriterT
     ((`runReaderT` initSrc) $ extendedEval @ValueLint @Symbol expr)
 
 main :: IO ()
-main = do
-    print "hello"
-    -- execEval $ Lit 1
-    -- execEval $ Mul (Lit 1) (Lit 2)
-    -- execEval $ Div (Lit 1) (Lit 0)
-
-    -- execLint $ Div (Lit 1) (Lit 0)
-    -- execLint $ Div (Lit 1) (Lit 0)
-    execEval $ Mul (Div (Lit 1) (Lit 0)) (Div (Lit 2) (Lit 0))
-    print "End"
+main = execLint $ Mul (Div (Lit 1) (Lit 0)) (Div (Lit 2) (Lit 0))
 

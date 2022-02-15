@@ -1,5 +1,11 @@
 # Chapter 3: Extension to the interpreter with adi
 
+Intro toy interpreter and linter in haskell
+
+* [Chapter 1: Simple abstract and concrete Interpreter](https://github.com/soulomoon/arith/tree/master/arith1)
+* [Chapter 2: Empowering the interpreter with mtl](https://github.com/soulomoon/arith/tree/master/arith2)
+* [Chapter 3: Extension to the interpreter with adi](https://github.com/soulomoon/arith/tree/master/arith3)
+
 In the last chapter, we implement an extendible effectful interpreter in mtl style.
 In this chapter we are enhancing the interpreter using technique in paper [Abstracting Definitional Interpreters
 ](https://arxiv.org/abs/1707.04755) to write extensions. The basic idea is to insert an additional layer in the evaluation in every recursion.

@@ -1,17 +1,18 @@
-# Chapter 2: Empowering the interpreter with mtl
+# 系列2: 用mtl来增强interpreter
 
-Intro toy interpreter and linter in haskell
+这个系列的文章会用haskell写点好玩而且简单的abstract interpreter(linter)和concrete interpreter(interpreter).
 
-* [Chapter 1: Simple abstract and concrete Interpreter](https://github.com/soulomoon/arith/tree/master/arith1)
-* [Chapter 2: Empowering the interpreter with mtl](https://github.com/soulomoon/arith/tree/master/arith2)
-* [Chapter 3: Extension to the interpreter with adi](https://github.com/soulomoon/arith/tree/master/arith3)
+* 系列1: 简单的abstract and concrete Interpreter
+* 系列2: 用mtl来增强interpreter
+* 系列3: 用adi来写interpreter的extension
 
-In chapter1, we implement a very naive(useless) abstract and concrete interpreter.
-We are empowering it with functionalities to perform various effectful operations in mtl-style.
+系列2的代码可以见[github源代码](https://github.com/soulomoon/arith/tree/master/arith2)
 
-## Wrap output under monad
+在之前我们实现了一个非常简单无用的解释器然后我们来让它变得有用一些吧。让它拥有更多的功能和副作用。
 
-Wrap return type with an `monad m` by adding one more argument to Interpreter class for all possible effect that can be carried out by monad.
+## 把结果用monad包起来
+
+在type class中把结果用monad包可以让我们运行各种副作用。
 
 ```haskell
 class (Monad m) => Interpret m v where
@@ -25,10 +26,10 @@ class (Monad m) => Interpret m v where
     evalLit :: Int -> m v
 ```
 
-## mtl style dependency injection
+## mtl style 依赖注入
 
-Monad m would be bounded more concretely in the instances.
-Concrete interpreter can throw exception, and abstract interpreter could record all the errors it found.
+前面的`Monad m`在instance中可以变得更多具体。
+例如下面，解释器可以抛出异常，linter可以记录跑的过程中的各种错误.所以分别加上了`MonadError`和`MonadWriter`, 需要`ConstraintKinds`来完成。
 
 ```haskell
 type MonadExec m =  (MonadError Exception m, Monad m)
@@ -50,7 +51,7 @@ instance (MonadLint m) => Interpret m Symbol where
     evalLit a = return $ if a == 0 then Zero else NotZero
 ```
 
-With mtl, we can easily build monad stack that fits the constraints and inject into the abstract interpreter in the following way.
+用mtl, 我们可以轻松把一堆monad堆起来形成一个具体的类型，来满足上面的`Constraint`需求。这个具体的类型能够注入到我们上面的interpreter和linter里面去, 像下面这样。
 
 ```haskell
 type ValueExec = ExceptT Exception Identity
@@ -62,19 +63,17 @@ execLint :: Expr -> IO ()
 execLint = print . eval @ValueLint @Symbol
 ```
 
-To add more effectful operations, we just need to add more monad constraints to `MonadExec` and build a concrete monad stack using mtl that fit the constraints.
+要添加更多的副作用操作，我们只需要给`MonadExec`和`MonadLint`加点`Constraint`，然后更新一下`ValueExec`和`ValueLint`来满足新的`Constraint`的需求。
 
 ## Add meta information for Exception
 
-Take the concrete interpreter for example
-We could add some meta information for exception.
+拿linter来举个例子给exception加点meta信息。
 
 ```haskell
 data SrcSpan = SrcSpan Expr deriving (Show)
 ```
 
-Then we add a `MonadReader SrcSpan` to constraint the abstract monad `m`. And retrieve the
-`srcSpan` information when needed.
+我们可以增加给我们抽象的monad `m`增加一个`MonadReader SrcSpan`constraint, 然后在过程中就可以用ask拿到这个信息去喂给`ExceptDivByZero`。
 
 ```haskell
 type MonadExec m =  (MonadReader SrcSpan m,  MonadError (Exception SrcSpan) m, Monad m)
@@ -88,7 +87,7 @@ instance (MonadExec m) => Interpret m Int where
     evalLit = hoistOut1 id
 ```
 
-In the concrete monad stack, we stack a `ReaderT` on the top to full fill the constraint.
+在具体的monad stack中，可以加一个`ReaderT`去满足这个constraint
 
 ```haskell
 type ValueExec = ReaderT SrcSpan (ExceptT (Exception SrcSpan) Identity)
@@ -98,5 +97,4 @@ execEval :: Expr -> IO ()
 execEval = print . flip runReaderT initSrc . eval @ValueExec @Int
 ```
 
-The same would goes for abstract interpreter.
-The current source span in the context never changed, we shall insert the source span to the context in the next chapter.
+同样的操作可以给到interpreter。目前我们`SrcSpan`永远没变化, 下一篇我们会利用一些技巧把这个信息注入到context中去
