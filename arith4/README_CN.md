@@ -1,98 +1,85 @@
-# 系列3: 用adi来写interpreter的extension
+# Chapter 4: Tag the tagless interpreter
+
+这个系列的文章会用haskell写点好玩而且简单的abstract interpreter(linter)和concrete interpreter(interpreter).
 
 这个系列的文章会用haskell写点好玩而且简单的abstract interpreter(linter)和concrete interpreter(interpreter).
 
 * 系列1: 简单的abstract and concrete Interpreter
 * 系列2: 用mtl来增强interpreter
 * 系列3: 用adi来写interpreter的extension
+* 系列4: 用tagless的方式拓展interpreter.
+* ...
 
-系列3的代码可以见[github源代码](https://github.com/soulomoon/arith/tree/master/arith3)
+[本篇的所有代码都在github](https://github.com/soulomoon/arith/tree/master/arith4).
 
-前面我们用mtl的风格实现了一个可以拓展出各种副作用的interpreter。下面我们继续增强我们的interpreter, 运用到的技巧在这里[Abstracting Definitional Interpreters
-](https://arxiv.org/abs/1707.04755)。 adi可以让我们写拓展的方式来写解释器，办法就是在evaluation的过程中注入额外的一层。
-这个过程有点像python的decorator还有后端的middleware的做法。
+在上一个篇中，我们写了an extendible effectful interpreter in mtl style而且用adi的办法来写拓展。
+在这一篇中，我们会把我们的interpreter分割成tag的部分和不带tag的部分来提高拓展性.
+大部分的技巧都来自著名的[tagless final](https://okmij.org/ftp/tagless-final/course/lecture.pdf),
+我们会通过拓展我们的目标语言来展示这些技巧。
 
-## 显式递归
+## 把tag的部分分离出来
 
-首先我们得把原来的`eval`改成现式的，这可以使得在evaluation的过程中注入额外的一层成为可能。
+在前面的`Interpret m v`, `eval` 负责把tagged的expression的tag处理掉, 然后扔到分立的evaluation function中`evalMul, evalDiv, evalLit`。所以它会带着tagged的类型，而同样在一个type class里面的其他function则不会。所以我们需要把`eval` 分离出来。
+这样, 我们可以分离interpreter中`tagged`的部分和不带`tag`的部分。
+
+* tagged 部分 `Expr` 和 `eval`.
+* tagless 部分, `Interpret` type class和它的instance, 我们可以很方便地去拓展这部分。
+
+## 拓展目标语言
+
+我们会把我们的目标语言拓展到带boolean的。
 
 ```haskell
-eval :: (Expr -> m v) -> Expr -> m v
+data Expr = ... | And Expr Expr | LitBool Bool
+```
+
+然后通过type class, 为新增加的部分建立新的interpreter `InterpretB`。然后我们会重命名旧的部分为`InterpretI`.
+然后把他们用`ConstraintType`弄在一起。
+这样还不够，因为目前`InterpretI m v`, `InterpretB m v` and `eval :: Combinator (Evaluator m v)`
+都带有v, 除非我们用tag的方式，我们没有办法把这些`v`都给unify.
+所以暂时干脆直接把`v`扔掉，然后用在里面用具体的类型。
+
+```haskell
+type (Interpret m ) = (InterpretI m, InterpretB m)
+class (Monad m) => InterpretB m where
+    evalAnd :: Bool -> Bool -> m Bool
+    evalLitB :: Bool -> m Bool
+class (Monad m) => InterpretI m where
+    evalMul :: Int -> Int -> m Int
+    evalDiv :: Int -> Int -> m Int
+    evalLitI :: Int -> m Int
+```
+
+## 把目标语言用GADTs来embed
+
+`eval`需要返回一个通用的`m v` (根据不同的expression可能是`m Bool`或`m Int`).
+目前的`Expr`没有提供到`v`的信息，是不够用的。
+所以要给用`GADTs`来强化我们的`Expr`定义。
+这样我们把目标语言embed到haskell里面去。还有好处就可以让`Expr`接受haskell的type check。
+
+```haskell
+data Expr v where
+    Mul ::Expr Int -> Expr Int -> Expr Int
+    Div ::Expr Int -> Expr Int -> Expr Int
+    And ::Expr Bool -> Expr Bool -> Expr Bool
+    LitI ::Int -> Expr Int
+    LitB ::Bool -> Expr Bool
+deriving instance (Show a) => Show (Expr a)
+```
+
+这样根据不同的constructor就可以phantom type `v`推导出来. 现在我们就准备好写`eval`了
+
+```haskell
+eval :: (Interpret m) => (Expr v -> m v) -> Expr v -> m v
 eval ev (Mul x y) = hoistArgs evalMul (ev x) (ev y)
 eval ev (Div x y) = hoistArgs evalDiv (ev x) (ev y)
-eval ev (Lit a) = evalLit a
+eval ev (LitI a) = evalLitI a
+eval ev (LitB a) = evalLitB a
+eval ev (And x y) = evalAnd (ev x) (ex y)
 ```
 
-去获得原来的interpreter,我们只需要`fix eval`(这里的fix是lambda calculus里面的y combinator)
+## 损失掉linter
 
-## 把source span信息注入到context的Extension
-
-上一篇中提到把source span的信息注入context(MonadReader)中，我们可以用写combinator形式来写extension。
-首先我们写点type synonym来避免过长的类型。
-
-```haskell
-type Evaluator m v = Expr -> m v
-type Combinator a = a -> a
-```
-
-然后这样我们就可以写出extension把source span的信息加进去。
-
-```haskell
-evAddSrc :: (MonadReader SrcSpan m, Interpret m v) => Combinator (Combinator (Evaluator m v))
-evAddSrc ev ev' e = local (const $ SrcSpan e) $ ev ev' e
-```
-
-让`extendedEval`把`eval`吃掉, 然后再fix一下就好了。
-
-```haskell
-extendedEval :: (Interpret m v, MonadReader SrcSpan m, MonadIO m) => Evaluator m v
-extendedEval = fix $ evAddSrc eval
-```
-
-## trace的Extension和把extension堆起来
-
-就像前面那样，我们可以写extension来top down trace 。
-
-```haskell
-evTrace :: (MonadIO m, Interpret m v) => Combinator (Combinator (Evaluator m v))
-evTrace ev ev' e = liftIO (print e) >> ev ev' e
-```
-
-同样bottom up trace:
-
-```haskell
-evTrace :: (MonadIO m, Interpret m v) => Combinator (Combinator (Evaluator m v))
-evTrace ev ev' e = ev ev' e <* liftIO (print e)
-```
-
-当然我们可以把两个extensions组合起来一起用，又注入source span, 又trace。
-
-```haskell
-extendedEval :: (Interpret m v, MonadReader SrcSpan m, MonadIO m) => Evaluator m v
-extendedEval = fix $ evTrace $ evAddSrc eval
-```
-
-然后我们来跑一下可以做trace的linter。
-
-```haskell
-execLint :: Expr -> IO ()
-execLint expr = print =<< runWriterT
-    ((`runReaderT` initSrc) $ extendedEval @ValueLint @Symbol expr)
-main :: IO ()
-main = execEval $ Mul (Div (Lit 1) (Lit 0)) (Div (Lit 2) (Lit 0))
-```
-
-得到top down的trace结果还有linter得到的一些信息：
-
-```haskell
-❯ cabal run
-Up to date
-Mul (Div (Lit 1) (Lit 0)) (Div (Lit 2) (Lit 0))
-Div (Lit 1) (Lit 0)
-Lit 1
-Lit 0
-Div (Lit 2) (Lit 0)
-Lit 2
-Lit 0
-(NotKnown,[ExceptDivByZero (SrcSpan (Div (Lit 1) (Lit 0))),ExceptDivByZero (SrcSpan (Div (Lit 2) (Lit 0)))])
-```
+我们把其他的function的类型修一修就可以拿到一个可以运行的concrete interpreter了
+但这里因为我们的type class `Interpret*`的function用了具体类型来方便做tagless的interpreter, 我们损失掉linter。
+下一个篇会重新把`Interpret*`类型抽象化来重新获得我们的linter。

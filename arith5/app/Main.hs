@@ -27,8 +27,8 @@ data Expr a where
     Mul ::Expr Int -> Expr Int -> Expr Int
     Div ::Expr Int -> Expr Int -> Expr Int
     And ::Expr Bool -> Expr Bool -> Expr Bool
-    LitInt ::Int -> Expr Int
-    LitBool ::Bool -> Expr Bool
+    LitI ::Int -> Expr Int
+    LitB ::Bool -> Expr Bool
 deriving instance (Show a) => Show (Expr a)
 
 data InterpreterType = Abstract | Concrete
@@ -58,17 +58,17 @@ eval :: forall t m v . (Interpret t m) => Combinator (Evaluator m v t)
 eval ev (Mul x y  ) = hoistArgs (evalMul @t) (ev x) (ev y)
 eval ev (Div x y  ) = hoistArgs (evalDiv @t) (ev x) (ev y)
 eval ev (And x y  ) = hoistArgs (evalAnd @t) (ev x) (ev y)
-eval ev (LitBool a) = evalLitBool @t a
-eval ev (LitInt  a) = evalLitInt @t a
+eval ev (LitB a) = evalLitB @t a
+eval ev (LitI  a) = evalLitI @t a
 
 class (Monad m) => InterpretB (t :: InterpreterType) m  where
     evalAnd :: (v ~ Value Bool t) => v -> v -> m v
-    evalLitBool :: (v ~ Value Bool t) => Bool -> m v
+    evalLitB :: (v ~ Value Bool t) => Bool -> m v
 
 class (Monad m) => InterpretI (t :: InterpreterType) m where
     evalMul :: (v ~ Value Int t) => v -> v -> m v
     evalDiv :: (v ~ Value Int t) => v -> v -> m v
-    evalLitInt :: (v ~ Value Int t) => Int -> m v
+    evalLitI :: (v ~ Value Int t) => Int -> m v
 
 data SrcSpan = forall v . (Show v) => SrcSpan v
 deriving instance Show SrcSpan
@@ -90,11 +90,11 @@ instance (MonadExec m) => InterpretI Concrete m  where
     evalMul = hoistOut2 (*)
     evalDiv a 0 = ask >>= throwError . ExceptDivByZero
     evalDiv a b = hoistOut2 div a b
-    evalLitInt = hoistOut1 id
+    evalLitI = hoistOut1 id
 
 instance (MonadExec m) => InterpretB Concrete m where
     evalAnd     = hoistOut2 (&&)
-    evalLitBool = hoistOut1 id
+    evalLitB = hoistOut1 id
 
 instance (MonadLint m) => InterpretI Abstract m where
     evalMul xx yy | xx == NotKnown || yy == NotKnown = return NotKnown
@@ -103,11 +103,11 @@ instance (MonadLint m) => InterpretI Abstract m where
     evalDiv x y = if y == Zero
         then ask >>= writer . (NotKnown, ) . return . ExceptDivByZero
         else return x
-    evalLitInt a = return $ if a == 0 then Zero else NotZero
+    evalLitI a = return $ if a == 0 then Zero else NotZero
 
 instance (MonadLint m) => InterpretB Abstract m where
     evalAnd _ _ = return NotKnown
-    evalLitBool _ = return NotKnown
+    evalLitB _ = return NotKnown
 
 evAddSrc
     :: forall t m v
@@ -131,7 +131,7 @@ type ValueExec = ReaderT SrcSpan (ExceptT (Exception SrcSpan) IO)
 type ValueLint = ReaderT SrcSpan (WriterT [Exception SrcSpan] IO)
 
 initSrc :: SrcSpan
-initSrc = SrcSpan (LitInt 0)
+initSrc = SrcSpan (LitI 0)
 
 
 execEval :: (Show v) => Expr v -> IO ()
@@ -143,7 +143,7 @@ execLint expr = print =<< runWriterT
     ((`runReaderT` initSrc) $ extendedEval @Abstract @ValueLint expr)
 
 expr :: Expr Int
-expr = Mul (Div (LitInt 1) (LitInt 0)) (Div (LitInt 2) (LitInt 0))
+expr = Mul (Div (LitI 1) (LitI 0)) (Div (LitI 2) (LitI 0))
 
 main :: IO ()
 main = execEval expr
