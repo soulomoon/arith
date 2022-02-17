@@ -6,82 +6,80 @@ Intro toy interpreter and linter in haskell
 * [Chapter 2: Empowering the interpreter with mtl](https://github.com/soulomoon/arith/tree/master/arith2)
 * [Chapter 3: Extension to the interpreter with adi](https://github.com/soulomoon/arith/tree/master/arith3)
 * [Chapter 4: Tag the tagless interpreter](https://github.com/soulomoon/arith/tree/master/arith4)
+* [Chapter 5: Regain the Linter with typeFamilies](https://github.com/soulomoon/arith/tree/master/arith4)
+* ...
 
-In the last chapter, we implement an extendible effectful interpreter in mtl style along with methods in adi to write extensions.
-In this chapter, we are providing more flexibility to the interpreter by splitting the interpreter into tag and tagless part.
-The tagless part can be seen from the famous paper.
-And we are going demonstrate this expanding the target language.
+In the last chapter, we have expand the interpreter in a tagless style, but the price is losing 
+the linter since we use concrete type notation for the interpreter type class.
+In this chapter, we are going to regain the linter by using typeFamilies to abstract out
+the interpreter type class.
 
-## Rip out the tag part
+## Polymorphic over the same type
 
-In the last `Interpret m v`, the `eval` function is responsible for extension and also ripping out the tagged expression
-to untagged one and feed to the untagged evaluation function `evalMul, evalDiv, evalLit`.
-It contains the tagged type, while the rest of the function in the same class does not. Sure we can drag out the `eval`
-function.
+Our target language now have two possible type, Bool and Int, and we want them to be type checked by the type system of haskell. 
+But since typing for the function of linter(abstract interpreter) need different set of types compared to the concrete interpreter. 
+Then we need our interpreter type class functions to have relative typing (relative to Bool and Int) differ by what type of interpreter is. 
+This means we need to relate type to type. This is what type families does.
+
+First we would want to define type for wether it is abstract and concrete. Using DataKinds we can do
 
 ```haskell
-eval :: (Interpret m v) => Combinator (Evaluator m v)
-eval ev (Mul x y) = hoistArgs evalMul (ev x) (ev y)
-eval ev (Div x y) = hoistArgs evalDiv (ev x) (ev y)
-eval ev (Lit a) = evalLit a
-
-class (Monad m) => Interpret m v where
-    evalMul :: v -> v -> m v
-    evalDiv :: v -> v -> m v
-    evalLit :: Int -> m v
+data InterpreterType = Abstract | Concrete
 ```
 
-It split the whole interpreter into two parts: the tagged part and the tagless part.
-In the tagged part `eval` and `Expr`, we still enjoys the tagged convenient such as deriving show class for the expression.
-In the tagless part, `Interpret m v` and its instances, we can enjoy the tagless convenient too, such as expanding the interpreter without modifying the old class.
-
-## Expanding the target language
-
-Here we expand the language to contains more also some boolean expressions.
+Then we build the type families for typing of our interpreter functions based on its type.
+For a concrete interpreter, the representative type for type a is simply a (Int is simply Int).
+For a abstract interpreter, everything is the symbolic type `Symbol`.
 
 ```haskell
-data Expr a =
-    Mul (Expr Int) (Expr Int)
-    | Div (Expr Int) (Expr Int)
-    | And (Expr Boolean) (Expr Int)
-    | Or Expr Expr
-    | Lit a deriving Show
+type family Value (a :: *) (b :: InterpreterType) where
+    Value a Concrete = a
+    Value _ Abstract = Symbol
 ```
 
-then the extension to add source span to context.
+## Generify the Interpret
+
+We need functions of the interpreter have a relative type depending on the output type and interpreter type.
+`Value Bool t` or `Value Int t`
 
 ```haskell
-evAddSrc :: (MonadReader SrcSpan m, Interpret m v) => Combinator (Combinator (Evaluator m v))
-evAddSrc ev ev' e = local (const $ SrcSpan e) $ ev ev' e
+class (Monad m) => InterpretB (t :: InterpreterType) m  where
+    evalAnd :: (v ~ Value Bool t) => v -> v -> m v
+    evalLitB :: (v ~ Value Bool t) => Bool -> m v
+
+class (Monad m) => InterpretI (t :: InterpreterType) m where
+    evalMul :: (v ~ Value Int t) => v -> v -> m v
+    evalDiv :: (v ~ Value Int t) => v -> v -> m v
+    evalLitI :: (v ~ Value Int t) => Int -> m v
 ```
 
-we could obtain the evaluator:
+## Generic eval
+
+Thus we generify the Interpret. Now with a little caveat. The `evalMul` inside `eval` do not understand what `t :: InterpreterType` is has.
+An explicit type application is needed. Eval is basically the same old one. Now it can be shared the linter too.
 
 ```haskell
-extendedEval :: (Interpret m v, MonadReader SrcSpan m, MonadIO m) => Evaluator m v
-extendedEval = fix $ evAddSrc eval
+eval :: forall t m v . (Interpret t m) => Combinator (Evaluator m v t)
+eval ev (Mul x y  ) = hoistArgs (evalMul @t) (ev x) (ev y)
+eval ev (Div x y  ) = hoistArgs (evalDiv @t) (ev x) (ev y)
+eval ev (And x y  ) = hoistArgs (evalAnd @t) (ev x) (ev y)
+eval ev (LitB a) = evalLitB @t a
+eval ev (LitI  a) = evalLitI @t a
 ```
 
-## Extension to trace the execution and stack up the extension
-
-Same as adding source span
-we can do a top down trace:
+Now the same old Linter is back.
 
 ```haskell
-evTrace :: (MonadIO m, Interpret m v) => Combinator (Combinator (Evaluator m v))
-evTrace ev ev' e = liftIO (print e) >> ev ev' e
-```
+instance (MonadLint m) => InterpretI Abstract m where
+    evalMul xx yy | xx == NotKnown || yy == NotKnown = return NotKnown
+                  | xx == Zero || yy == Zero         = return Zero
+                  | otherwise                        = return NotZero
+    evalDiv x y = if y == Zero
+        then ask >>= writer . (NotKnown, ) . return . ExceptDivByZero
+        else return x
+    evalLitI a = return $ if a == 0 then Zero else NotZero
 
-also a bottom up trace:
-
-```haskell
-evTrace :: (MonadIO m, Interpret m v) => Combinator (Combinator (Evaluator m v))
-evTrace ev ev' e = ev ev' e <* liftIO (print e)
-```
-
-and of course we can stack the two extension together:
-
-```haskell
-extendedEval :: (Interpret m v, MonadReader SrcSpan m, MonadIO m) => Evaluator m v
-extendedEval = fix $ evTrace $ evAddSrc eval
+instance (MonadLint m) => InterpretB Abstract m where
+    evalAnd _ _ = return NotKnown
+    evalLitB _ = return NotKnown
 ```
