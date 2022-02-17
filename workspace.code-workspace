@@ -1,0 +1,29 @@
+{
+	"folders": [
+		{
+			"path": "arith4"
+		},
+		{
+			"path": "arith1"
+		},
+		{
+			"path": "arith2"
+		},
+		{
+			"path": "arith3"
+		},
+		{
+			"path": "arith5"
+		},
+		{
+			"path": "arith4_lambda"
+		},
+		{
+			"path": "arith6"
+		},
+		{
+			"path": "arith5_gadtgeneric"
+		}
+	],
+	"settings": {}
+}

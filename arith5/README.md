@@ -1,4 +1,4 @@
-# Chapter 4: Tag the tagless interpreter
+# Chapter 5: Regain the Linter with typeFamilies
 
 Intro toy interpreter and linter in haskell
 
@@ -6,11 +6,13 @@ Intro toy interpreter and linter in haskell
 * [Chapter 2: Empowering the interpreter with mtl](https://github.com/soulomoon/arith/tree/master/arith2)
 * [Chapter 3: Extension to the interpreter with adi](https://github.com/soulomoon/arith/tree/master/arith3)
 * [Chapter 4: Tag the tagless interpreter](https://github.com/soulomoon/arith/tree/master/arith4)
-* [Chapter 5: Regain the Linter with typeFamilies](https://github.com/soulomoon/arith/tree/master/arith4)
+* [Chapter 5: Regain the Linter with typeFamilies](https://github.com/soulomoon/arith/tree/master/arith5)
+* (working) [Chapter 6: Expand the target language to have hof](https://github.com/soulomoon/arith/tree/master/arith6)
+* (working) [Chapter 7: recursion scheme over the target language](https://github.com/soulomoon/arith/tree/master/arith7)
 * ...
 
-In the last chapter, we have expand the interpreter in a tagless style, but the price is losing 
-the linter since we use concrete type notation for the interpreter type class.
+
+In the last chapter, we make it possible to expand the interpreter along with the language in a tagless style, but the price is losing the linter since we use concrete type notation for the interpreter type class.
 In this chapter, we are going to regain the linter by using typeFamilies to abstract out
 the interpreter type class.
 
@@ -29,17 +31,20 @@ data InterpreterType = Abstract | Concrete
 
 Then we build the type families for typing of our interpreter functions based on its type.
 For a concrete interpreter, the representative type for type a is simply a (Int is simply Int).
-For a abstract interpreter, everything is the symbolic type `Symbol`.
+For a abstract interpreter, (Int -> SymbolI, Bool -> SymbolB).
 
 ```haskell
 type family Value (a :: *) (b :: InterpreterType) where
-    Value a Concrete = a
-    Value _ Abstract = Symbol
+  Value a Concrete = a
+  Value Bool Abstract = SymbolB
+  Value Int Abstract = SymbolI
+  data SymbolI = Zero | NotZero | NotKnown deriving (Show, Eq)
+data SymbolB = TrueOrFalse deriving (Show, Eq)
 ```
 
 ## Generify the Interpret
 
-We need functions of the interpreter have a relative type depending on the output type and interpreter type.
+Functions of the interpreter could now have a relative type depending on the output type and interpreter type, it is being re-generify as in the previous chapters.
 `Value Bool t` or `Value Int t`
 
 ```haskell
@@ -56,7 +61,7 @@ class (Monad m) => InterpretI (t :: InterpreterType) m where
 ## Generic eval
 
 Thus we generify the Interpret. Now with a little caveat. The `evalMul` inside `eval` do not understand what `t :: InterpreterType` is has.
-An explicit type application is needed. Eval is basically the same old one. Now it can be shared the linter too.
+An explicit type application is needed. Eval is basically the same old one. It can be used by linter too.
 
 ```haskell
 eval :: forall t m v . (Interpret t m) => Combinator (Evaluator m v t)
@@ -67,7 +72,8 @@ eval ev (LitB a) = evalLitB @t a
 eval ev (LitI  a) = evalLitI @t a
 ```
 
-Now the same old Linter is back.
+Now the same old Linter is back with additional InterpretB instance.
+Nothing much to do here, because basically all the type check is embedded into haskell type system.
 
 ```haskell
 instance (MonadLint m) => InterpretI Abstract m where
@@ -80,6 +86,41 @@ instance (MonadLint m) => InterpretI Abstract m where
     evalLitI a = return $ if a == 0 then Zero else NotZero
 
 instance (MonadLint m) => InterpretB Abstract m where
-    evalAnd _ _ = return NotKnown
-    evalLitB _ = return NotKnown
+    evalAnd _ _ = return TrueOrFalse
+    evalLitB _ = return TrueOrFalse
 ```
+
+with a little type fixed up, now we could run the linter again.
+
+```haskell
+extendedEval :: forall t m v
+     . (Interpret t m, MonadReader SrcSpan m, MonadIO m, Show v)
+    => Evaluator m v t
+extendedEval = fix $ (evTrace @t) $ (evAddSrc @t) (eval @t)
+execLint :: (Show (Value v Abstract)) => Expr v -> IO ()
+execLint expr = print =<< runWriterT
+    ((`runReaderT` initSrc) $ extendedEval @Abstract @ValueLint expr)
+expr :: Expr Int
+expr = Mul (Div (LitI 1) (LitI 0)) (Div (LitI 2) (LitI 0))
+main :: IO ()
+main = execLint expr
+```
+
+the same old result.
+
+```
+Mul (Div (LitI 1) (LitI 0)) (Div (LitI 2) (LitI 0))
+Div (LitI 1) (LitI 0)
+LitI 1
+LitI 0
+Div (LitI 2) (LitI 0)
+LitI 2
+LitI 0
+(NotKnown,[ExceptDivByZero (SrcSpan (Div (LitI 1) (LitI 0))),ExceptDivByZero (SrcSpan (Div (LitI 2) (LitI 0)))])
+```
+
+
+## Forecasts
+
+The target language now is till very native.
+We would expand the language to have an higher order function and expand along with the the interpreter the next chapter.

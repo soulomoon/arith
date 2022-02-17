@@ -2,8 +2,6 @@
 
 这个系列的文章会用haskell写点好玩而且简单的abstract interpreter(linter)和concrete interpreter(interpreter).
 
-这个系列的文章会用haskell写点好玩而且简单的abstract interpreter(linter)和concrete interpreter(interpreter).
-
 * 系列1: 简单的abstract and concrete Interpreter
 * 系列2: 用mtl来增强interpreter
 * 系列3: 用adi来写interpreter的extension

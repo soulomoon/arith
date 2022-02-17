@@ -1,98 +1,122 @@
-# 系列3: 用adi来写interpreter的extension
+# 系列5: 用typeFamilies重获Linter
 
 这个系列的文章会用haskell写点好玩而且简单的abstract interpreter(linter)和concrete interpreter(interpreter).
 
 * 系列1: 简单的abstract and concrete Interpreter
 * 系列2: 用mtl来增强interpreter
 * 系列3: 用adi来写interpreter的extension
+* 系列4: 用tagless的方式拓展interpreter.
+* 系列5: 用typeFamilies重获Linter.
+* 系列6: 拓展到高阶lambda function(working...).
+* 系列7: 让目标语言用上free monad和recursion scheme(working...).
 
-系列3的代码可以见[github源代码](https://github.com/soulomoon/arith/tree/master/arith3)
+系列5的代码可以见[github源代码](https://github.com/soulomoon/arith/tree/master/arith5)
 
-前面我们用mtl的风格实现了一个可以拓展出各种副作用的interpreter。下面我们继续增强我们的interpreter, 运用到的技巧在这里[Abstracting Definitional Interpreters
-](https://arxiv.org/abs/1707.04755)。 adi可以让我们写拓展的方式来写解释器，办法就是在evaluation的过程中注入额外的一层。
-这个过程有点像python的decorator还有后端的middleware的做法。
+在上一个篇中，我们使得我们的interpreter可以跟随语言一起以tagless的方式拓展。
+但是我们丧失了linter因为类型type class上的function的类型都是具体的。
+在这一篇中，我们会用typeFamilies去要重新获得抽象化我们的type class的类型，来取回我们丧失的linter。
 
-## 显式递归
+## Polymorphic over the same type
 
-首先我们得把原来的`eval`改成现式的，这可以使得在evaluation的过程中注入额外的一层成为可能。
+我们的目标语言现在有两种类型，Bool和Int，同时我们想要它可以被haskell的type system type check。
+但是因为linter对类型的需求和concrete interpreter会不同。所以我们需要让我们的type class的function
+拥有相对的（相对于Bool和Int）,同时可以被interpreter的类型区分开来。这意味着我们需要type到type的映射，而这就是
+type families的能力。
+
+首先我们用DataKinds定义interpreter的类型。
 
 ```haskell
-eval :: (Expr -> m v) -> Expr -> m v
-eval ev (Mul x y) = hoistArgs evalMul (ev x) (ev y)
-eval ev (Div x y) = hoistArgs evalDiv (ev x) (ev y)
-eval ev (Lit a) = evalLit a
+data InterpreterType = Abstract | Concrete
 ```
 
-去获得原来的interpreter,我们只需要`fix eval`(这里的fix是lambda calculus里面的y combinator)
-
-## 把source span信息注入到context的Extension
-
-上一篇中提到把source span的信息注入context(MonadReader)中，我们可以用写combinator形式来写extension。
-首先我们写点type synonym来避免过长的类型。
+然后我们定义type families去提供interpreter function的类型
+对于concrete的interpreter，对于的类型分别是id Int和id Bool
+对于abstract的interpreter(linter)，对于的类型分别是(Int -> SymbolI, Bool -> SymbolB)
 
 ```haskell
-type Evaluator m v = Expr -> m v
-type Combinator a = a -> a
+data SymbolI = Zero | NotZero | NotKnown deriving (Show, Eq)
+data SymbolB = TrueOrFalse deriving (Show, Eq)
+type family Value (a :: *) (b :: InterpreterType) where
+  Value a Concrete = a
+  Value Bool Abstract = SymbolB
+  Value Int Abstract = SymbolI
 ```
 
-然后这样我们就可以写出extension把source span的信息加进去。
+## Generify the Interpret
+
+像下面这样Interpreter的function类型被重新抽象化了, 分别是`Value Bool t` or `Value Int t`
 
 ```haskell
-evAddSrc :: (MonadReader SrcSpan m, Interpret m v) => Combinator (Combinator (Evaluator m v))
-evAddSrc ev ev' e = local (const $ SrcSpan e) $ ev ev' e
+class (Monad m) => InterpretB (t :: InterpreterType) m  where
+    evalAnd :: (v ~ Value Bool t) => v -> v -> m v
+    evalLitB :: (v ~ Value Bool t) => Bool -> m v
+
+class (Monad m) => InterpretI (t :: InterpreterType) m where
+    evalMul :: (v ~ Value Int t) => v -> v -> m v
+    evalDiv :: (v ~ Value Int t) => v -> v -> m v
+    evalLitI :: (v ~ Value Int t) => Int -> m v
 ```
 
-让`extendedEval`把`eval`吃掉, 然后再fix一下就好了。
+## Generic eval
+
+我们重新抽象化我们的interpreter之后，在`eval`中遇到了一点问题，就是`evalMul`不知道`t :: InterpreterType`,
+需要显式的type application(还有别的地方也需要)。除此之外，基本上是原来的`Eval`, 只不过现在也可以用在Linter上了
 
 ```haskell
-extendedEval :: (Interpret m v, MonadReader SrcSpan m, MonadIO m) => Evaluator m v
-extendedEval = fix $ evAddSrc eval
+eval :: forall t m v . (Interpret t m) => Combinator (Evaluator m v t)
+eval ev (Mul x y  ) = hoistArgs (evalMul @t) (ev x) (ev y)
+eval ev (Div x y  ) = hoistArgs (evalDiv @t) (ev x) (ev y)
+eval ev (And x y  ) = hoistArgs (evalAnd @t) (ev x) (ev y)
+eval ev (LitB a) = evalLitB @t a
+eval ev (LitI  a) = evalLitI @t a
 ```
 
-## trace的Extension和把extension堆起来
-
-就像前面那样，我们可以写extension来top down trace 。
+原来的Linter可以被重新拿回来用了
 
 ```haskell
-evTrace :: (MonadIO m, Interpret m v) => Combinator (Combinator (Evaluator m v))
-evTrace ev ev' e = liftIO (print e) >> ev ev' e
+instance (MonadLint m) => InterpretI Abstract m where
+    evalMul xx yy | xx == NotKnown || yy == NotKnown = return NotKnown
+                  | xx == Zero || yy == Zero         = return Zero
+                  | otherwise                        = return NotZero
+    evalDiv x y = if y == Zero
+        then ask >>= writer . (NotKnown, ) . return . ExceptDivByZero
+        else return x
+    evalLitI a = return $ if a == 0 then Zero else NotZero
+
+instance (MonadLint m) => InterpretB Abstract m where
+    evalAnd _ _ = return TrueOrFalse
+    evalLitB _ = return TrueOrFalse
 ```
 
-同样bottom up trace:
+我们可以来运行一下
 
 ```haskell
-evTrace :: (MonadIO m, Interpret m v) => Combinator (Combinator (Evaluator m v))
-evTrace ev ev' e = ev ev' e <* liftIO (print e)
-```
-
-当然我们可以把两个extensions组合起来一起用，又注入source span, 又trace。
-
-```haskell
-extendedEval :: (Interpret m v, MonadReader SrcSpan m, MonadIO m) => Evaluator m v
-extendedEval = fix $ evTrace $ evAddSrc eval
-```
-
-然后我们来跑一下可以做trace的linter。
-
-```haskell
-execLint :: Expr -> IO ()
+extendedEval :: forall t m v
+     . (Interpret t m, MonadReader SrcSpan m, MonadIO m, Show v)
+    => Evaluator m v t
+extendedEval = fix $ (evTrace @t) $ (evAddSrc @t) (eval @t)
+execLint :: (Show (Value v Abstract)) => Expr v -> IO ()
 execLint expr = print =<< runWriterT
-    ((`runReaderT` initSrc) $ extendedEval @ValueLint @Symbol expr)
+    ((`runReaderT` initSrc) $ extendedEval @Abstract @ValueLint expr)
+expr :: Expr Int
+expr = Mul (Div (LitI 1) (LitI 0)) (Div (LitI 2) (LitI 0))
 main :: IO ()
-main = execEval $ Mul (Div (Lit 1) (Lit 0)) (Div (Lit 2) (Lit 0))
+main = execLint expr
 ```
 
-得到top down的trace结果还有linter得到的一些信息：
+结果还是原来的感觉
 
-```haskell
-❯ cabal run
-Up to date
-Mul (Div (Lit 1) (Lit 0)) (Div (Lit 2) (Lit 0))
-Div (Lit 1) (Lit 0)
-Lit 1
-Lit 0
-Div (Lit 2) (Lit 0)
-Lit 2
-Lit 0
-(NotKnown,[ExceptDivByZero (SrcSpan (Div (Lit 1) (Lit 0))),ExceptDivByZero (SrcSpan (Div (Lit 2) (Lit 0)))])
 ```
+Mul (Div (LitI 1) (LitI 0)) (Div (LitI 2) (LitI 0))
+Div (LitI 1) (LitI 0)
+LitI 1
+LitI 0
+Div (LitI 2) (LitI 0)
+LitI 2
+LitI 0
+(NotKnown,[ExceptDivByZero (SrcSpan (Div (LitI 1) (LitI 0))),ExceptDivByZero (SrcSpan (Div (LitI 2) (LitI 0)))])
+```
+
+## Forecasts
+
+现在的目标语言还是很低级，所以下一篇，我们继续拓展我们的interpreter使得目标语言可以有higher order function。

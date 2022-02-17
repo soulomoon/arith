@@ -47,9 +47,12 @@ data InterpreterType = Abstract | Concrete
 
 type family Value (a :: *) (b :: InterpreterType) where
   Value a Concrete = a
-  Value _ Abstract = Symbol
+  Value Bool Abstract = SymbolB
+  Value Int Abstract = SymbolI
 
-data Symbol = Zero | NotZero | NotKnown deriving (Show, Eq)
+data SymbolI = Zero | NotZero | NotKnown deriving (Show, Eq)
+data SymbolB = TrueOrFalse deriving (Show, Eq)
+data SymbolF = SymbolFunction
 
 newtype Exception a = ExceptDivByZero a deriving (Eq, Show)
 
