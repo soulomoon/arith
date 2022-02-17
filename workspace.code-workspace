@@ -23,6 +23,9 @@
 		},
 		{
 			"path": "arith5_gadtgeneric"
+		},
+		{
+			"path": "."
 		}
 	],
 	"settings": {}

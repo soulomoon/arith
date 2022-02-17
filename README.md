@@ -8,7 +8,7 @@ Intro toy interpreter and linter in haskell
 * [Chapter 4: Tag the tagless interpreter](https://github.com/soulomoon/arith/tree/master/arith4)
 * [Chapter 5: Regain the Linter with typeFamilies](https://github.com/soulomoon/arith/tree/master/arith5)
 * (working) [Chapter 6: High order lambda function enabled](https://github.com/soulomoon/arith/tree/master/arith6)
-* (working) [Chapter 7: recursion scheme over the target language](https://github.com/soulomoon/arith/tree/master/arith7)
+* (planning) [Chapter 7: Write the Interpreter in recursion scheme](https://github.com/soulomoon/arith/tree/master/arith7)
 * ...
 
 ## Language
