@@ -13,6 +13,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 
 module Main where
 
@@ -27,8 +28,7 @@ import Control.Monad.Writer
 import Data.Data (Typeable)
 import Data.Typeable (typeOf)
 
-type VC v = (Show v, Typeable v)
-
+type VC v = (Show v, Typeable v, Symbolic v)
 data Expr a where
   Mul :: Expr Int -> Expr Int -> Expr Int
   Div :: Expr Int -> Expr Int -> Expr Int
@@ -46,18 +46,27 @@ deriving instance (Show a, Typeable a) => Show (Expr a)
 data InterpreterType = Abstract | Concrete
 
 type family Value (a :: *) (b :: InterpreterType) where
-  Value a Concrete = a
   Value Bool Abstract = SymbolB
   Value Int Abstract = SymbolI
+  Value (a -> b) Abstract = Value a Abstract -> Value b Abstract
+  Value a Concrete = a 
+
+class Symbolic a where
+  defaultSym ::  Value a Abstract 
+instance Symbolic Int where
+  defaultSym = NotKnown
+instance Symbolic Bool where
+  defaultSym = TrueOrFalse
+instance (Symbolic a , Symbolic b) => Symbolic (a -> b) where
+  defaultSym _ = defaultSym @b
 
 data SymbolI = Zero | NotZero | NotKnown deriving (Show, Eq)
 data SymbolB = TrueOrFalse deriving (Show, Eq)
-data SymbolF = SymbolFunction
 
 newtype Exception a = ExceptDivByZero a deriving (Eq, Show)
 
 type Eval t m =
-  forall v. (VC v) => (Interpret t m) => Expr v -> m (Value v t)
+  forall v. (VC v, Symbolic v) => (Interpret t m) => Expr v -> m (Value v t)
 
 type Combinator a = a -> a
 
@@ -95,7 +104,7 @@ class (Monad m) => InterpretI (t :: InterpreterType) m where
   evalMul :: (v ~ Value Int t) => v -> v -> m v
   evalDiv :: (v ~ Value Int t) => v -> v -> m v
   evalLitI :: (v ~ Value Int t) => Int -> m v
-  evalLam :: (v ~ Value (b -> a) t) => (b -> a) -> m v
+  evalLam :: (v ~ Value (b -> a) t, Symbolic a) => (b -> a) -> m v
   evalApp :: forall a b. Value (b -> a) t -> Value b t -> m (Value a t)
 
 data SrcSpan = forall v. (Show v) => SrcSpan v
@@ -127,8 +136,9 @@ instance (MonadLint m) => InterpretI Abstract m where
     | y == Zero = ask >>= writer . (NotKnown,) . return . ExceptDivByZero
     | otherwise = return x
   evalLitI a = return $ if a == 0 then Zero else NotZero
-  evalLam _ = return NotKnown
-  evalApp _ _ = return NotKnown
+  evalLam (_ :: b -> a) = return (const $ defaultSym @a)
+  evalApp ap b = return $ ap b
+
 
 instance (MonadLint m) => InterpretB Abstract m where
   evalAnd _ _ = return TrueOrFalse
@@ -162,7 +172,7 @@ execEval expr =
     =<< runExceptT
       ((`runReaderT` initSrc) $ extendedEval @Concrete @ValueExec expr)
 
-execLint :: (VC v) => Expr v -> IO ()
+execLint :: (VC v, Show (Value v 'Abstract)) => Expr v -> IO ()
 execLint expr =
   print
     =<< runWriterT
@@ -171,8 +181,13 @@ execLint expr =
 add1 :: Int -> Int
 add1 = (+ 1)
 
+expr0 :: Expr Int
+expr0 = App (Lam add1) (LitI 1)
+
 expr :: Expr Int
 expr = Mul (Div (LitI 1) (App (Lam add1) (LitI 1))) (Div (LitI 2) (LitI 0))
 
 main :: IO ()
-main = execEval expr
+main = do
+  execEval expr
+  execLint expr
