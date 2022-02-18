@@ -32,6 +32,7 @@ data Expr a where
     Lam :: (VC c, VC b) => (b -> c) -> Expr (b -> c)
     App :: (VC a, VC b) => Expr (b -> a) -> Expr b -> Expr a
 
+
 instance (Typeable a, Typeable b) => Show (a -> b) where
     show x = "(" ++ show (typeOf x) ++ ")"
 

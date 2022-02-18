@@ -20,7 +20,7 @@
 
 我们的目标语言现在有两种类型，Bool和Int，同时我们想要它可以被haskell的type system type check。
 但是因为linter对类型的需求和concrete interpreter会不同。所以我们需要让我们的type class的function
-拥有相对的（相对于Bool和Int）,同时可以被interpreter的类型区分开来。这意味着我们需要type到type的映射，而这就是
+拥有相对的类型（相对于Bool和Int）,同时可以被interpreter的种类区分开来。这意味着我们需要type到type的映射，而这就是
 type families的能力。
 
 首先我们用DataKinds定义interpreter的类型。

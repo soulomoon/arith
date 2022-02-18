@@ -131,8 +131,8 @@ instance (MonadLint m) => InterpretI Abstract m where
   evalApp _ _ = return NotKnown
 
 instance (MonadLint m) => InterpretB Abstract m where
-  evalAnd _ _ = return NotKnown
-  evalLitB _ = return NotKnown
+  evalAnd _ _ = return TrueOrFalse
+  evalLitB _ = return TrueOrFalse
 
 evAddSrc :: forall t m. (MonadReader SrcSpan m, Interpret t m) => Transformer t m
 evAddSrc ev ev' e = local (const $ SrcSpan e) $ ev ev' e
