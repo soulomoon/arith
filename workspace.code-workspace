@@ -26,7 +26,18 @@
 		},
 		{
 			"path": "."
+		},
+		{
+			"path": "arith7"
+		},
+		{
+			"path": "arith7 copy"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"cSpell.words": [
+			"hfmap",
+			"seqe"
+		]
+	}
 }

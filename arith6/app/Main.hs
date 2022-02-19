@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
--- {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -65,13 +64,9 @@ data SymbolB = TrueOrFalse deriving (Show, Eq)
 
 newtype Exception a = ExceptDivByZero a deriving (Eq, Show)
 
-type Eval t m =
-  forall v. (VC v, Symbolic v) => (Interpret t m) => Expr v -> m (Value v t)
-
+type Eval t m = forall v. (VC v, Symbolic v, Interpret t m) => Expr v -> m (Value v t)
 type Combinator a = a -> a
-
 type EvalCombinator t m = Combinator (Eval t m)
-
 type Transformer t m = Combinator (EvalCombinator t m)
 
 hoistOut1 :: Monad m => (a -> b) -> (a -> m b)
@@ -83,7 +78,7 @@ hoistOut2 = (.) hoistOut1
 hoistArgs :: Monad m => (a -> b -> m c) -> (m a -> m b -> m c)
 hoistArgs f a b = do aa <- a; b >>= f aa
 
-type Interpret t m = (InterpretI t m, InterpretB t m)
+type Interpret t m = (InterpretI t m, InterpretB t m, InterpretL t m)
 
 eval :: forall t m. EvalCombinator t m
 eval ev expr = case expr of
@@ -104,6 +99,8 @@ class (Monad m) => InterpretI (t :: InterpreterType) m where
   evalMul :: (v ~ Value Int t) => v -> v -> m v
   evalDiv :: (v ~ Value Int t) => v -> v -> m v
   evalLitI :: (v ~ Value Int t) => Int -> m v
+
+class (Monad m) => InterpretL (t :: InterpreterType) m where
   evalLam :: (v ~ Value (b -> a) t, Symbolic a) => (b -> a) -> m v
   evalApp :: forall a b. Value (b -> a) t -> Value b t -> m (Value a t)
 
@@ -120,6 +117,8 @@ instance (MonadExec m) => InterpretI Concrete m where
   evalDiv a 0 = ask >>= throwError . ExceptDivByZero
   evalDiv a b = hoistOut2 div a b
   evalLitI = hoistOut1 id
+
+instance (MonadExec m) => InterpretL Concrete m where
   evalLam = hoistOut1 id
   evalApp = hoistOut2 ($)
 
@@ -136,6 +135,8 @@ instance (MonadLint m) => InterpretI Abstract m where
     | y == Zero = ask >>= writer . (NotKnown,) . return . ExceptDivByZero
     | otherwise = return x
   evalLitI a = return $ if a == 0 then Zero else NotZero
+
+instance (MonadLint m) => InterpretL Abstract m where
   evalLam (_ :: b -> a) = return (const $ defaultSym @a)
   evalApp ap b = return $ ap b
 
@@ -181,13 +182,16 @@ execLint expr =
 add1 :: Int -> Int
 add1 = (+ 1)
 
+double :: (Int -> Int) -> (Int -> Int)
+double f = f . f
+
 expr0 :: Expr Int
-expr0 = App (Lam add1) (LitI 1)
+expr0 = App (App (Lam double) (Lam add1)) (LitI 1)
 
 expr :: Expr Int
 expr = Mul (Div (LitI 1) (App (Lam add1) (LitI 1))) (Div (LitI 2) (LitI 0))
 
 main :: IO ()
 main = do
-  execEval expr
+  execLint expr0
   execLint expr

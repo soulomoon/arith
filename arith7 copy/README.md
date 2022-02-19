@@ -1,4 +1,4 @@
-# Chapter 6: Expand the target language to have hof
+# Chapter 5: Regain the Linter with typeFamilies
 
 Intro toy interpreter and linter in haskell
 
@@ -8,7 +8,7 @@ Intro toy interpreter and linter in haskell
 * [Chapter 4: Tag the tagless interpreter](https://github.com/soulomoon/arith/tree/master/arith4)
 * [Chapter 5: Regain the Linter with typeFamilies](https://github.com/soulomoon/arith/tree/master/arith5)
 * [Chapter 6: Expand the target language to have hof](https://github.com/soulomoon/arith/tree/master/arith6)
-* [Chapter 7: recursion scheme over the target language](https://github.com/soulomoon/arith/tree/master/arith7)
+* (working) [Chapter 7: recursion scheme over the target language](https://github.com/soulomoon/arith/tree/master/arith7)
 * ...
 
 In this chapter, we are going to expand the language to have hof.
