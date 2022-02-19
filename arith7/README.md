@@ -1,4 +1,4 @@
-# Chapter 5: Regain the Linter with typeFamilies
+# Chapter 7: a polymorphic typed recursion scheme over the Gadts
 
 Intro toy interpreter and linter in haskell
 
