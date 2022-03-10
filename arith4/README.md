@@ -1,13 +1,5 @@
 # Chapter 4: Tag the tagless interpreter
 
-Intro toy interpreter and linter in haskell
-
-* [Chapter 1: Simple abstract and concrete Interpreter](https://github.com/soulomoon/arith/tree/master/arith1)
-* [Chapter 2: Empowering the interpreter with mtl](https://github.com/soulomoon/arith/tree/master/arith2)
-* [Chapter 3: Extension to the interpreter with adi](https://github.com/soulomoon/arith/tree/master/arith3)
-* [Chapter 4: Tag the tagless interpreter](https://github.com/soulomoon/arith/tree/master/arith4)
-* ...
-
 All the source code showing in the chapter would be in [Chapter 4: Tag the tagless interpreter](https://github.com/soulomoon/arith/tree/master/arith4).
 
 In the last chapter, we implement an extendible effectful interpreter in mtl style along with methods in adi to write extensions.

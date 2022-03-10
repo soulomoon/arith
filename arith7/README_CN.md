@@ -20,11 +20,12 @@ recursion scheme over Gadts 可以从这个[blog](http://www.timphilipwilliams.c
 因为类型推倒会变得非常复杂, 相对于对比前面的定义来说。所以我们需要把`Value` type family变成 injective type families来增强可推导性，主要是让其可以做两个类型domain的双射。
 
 ```haskell
-type family Value (a :: *) (b :: InterpreterType) where
+type family Value (a :: *) (b :: InterpreterType) = r | r -> a b where
   Value Bool Abstract = SymbolB
   Value Int Abstract = SymbolI
-  Value (a -> b) Abstract = Value a Abstract -> Value b Abstract
-  Value a Concrete = a 
+  Value Int Concrete = Int
+  Value Bool Concrete = Bool
+  Value (a -> b) t = Value a t -> Value b t
 ```
 
 ## Functor version of target language

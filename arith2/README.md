@@ -1,11 +1,5 @@
 # Chapter 2: Empowering the interpreter with mtl
 
-Intro toy interpreter and linter in haskell
-
-* [Chapter 1: Simple abstract and concrete Interpreter](https://github.com/soulomoon/arith/tree/master/arith1)
-* [Chapter 2: Empowering the interpreter with mtl](https://github.com/soulomoon/arith/tree/master/arith2)
-* [Chapter 3: Extension to the interpreter with adi](https://github.com/soulomoon/arith/tree/master/arith3)
-
 In chapter1, we implement a very naive(useless) abstract and concrete interpreter.
 We are empowering it with functionalities to perform various effectful operations in mtl-style.
 

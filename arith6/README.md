@@ -1,16 +1,5 @@
 # Chapter 6: Expand the target language to have hof
 
-Intro toy interpreter and linter in haskell
-
-* [Chapter 1: Simple abstract and concrete Interpreter](https://github.com/soulomoon/arith/tree/master/arith1)
-* [Chapter 2: Empowering the interpreter with mtl](https://github.com/soulomoon/arith/tree/master/arith2)
-* [Chapter 3: Extension to the interpreter with adi](https://github.com/soulomoon/arith/tree/master/arith3)
-* [Chapter 4: Tag the tagless interpreter](https://github.com/soulomoon/arith/tree/master/arith4)
-* [Chapter 5: Regain the Linter with typeFamilies](https://github.com/soulomoon/arith/tree/master/arith5)
-* [Chapter 6: Expand the target language to have hof](https://github.com/soulomoon/arith/tree/master/arith6)
-* [Chapter 7: recursion scheme over the target language](https://github.com/soulomoon/arith/tree/master/arith7)
-* ...
-
 In this chapter, we are going to expand the language to have hof.
 
 ## Expand the Value

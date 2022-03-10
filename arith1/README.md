@@ -1,11 +1,5 @@
 # Chapter 1: Simple abstract and concrete Interpreter
 
-Intro toy interpreter and linter in haskell
-
-* [Chapter 1: Simple abstract and concrete Interpreter](https://github.com/soulomoon/arith/tree/master/arith1)
-* [Chapter 2: Empowering the interpreter with mtl](https://github.com/soulomoon/arith/tree/master/arith2)
-* [Chapter 3: Extension to the interpreter with adi](https://github.com/soulomoon/arith/tree/master/arith3)
-
 ## Simple concrete interpreter
 
 The simplest possible arith interpreter in its simplest form written with pure algebraic data type and simple recursive decent.

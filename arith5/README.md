@@ -1,17 +1,5 @@
 # Chapter 5: Regain the Linter with typeFamilies
 
-Intro toy interpreter and linter in haskell
-
-* [Chapter 1: Simple abstract and concrete Interpreter](https://github.com/soulomoon/arith/tree/master/arith1)
-* [Chapter 2: Empowering the interpreter with mtl](https://github.com/soulomoon/arith/tree/master/arith2)
-* [Chapter 3: Extension to the interpreter with adi](https://github.com/soulomoon/arith/tree/master/arith3)
-* [Chapter 4: Tag the tagless interpreter](https://github.com/soulomoon/arith/tree/master/arith4)
-* [Chapter 5: Regain the Linter with typeFamilies](https://github.com/soulomoon/arith/tree/master/arith5)
-* (working) [Chapter 6: Expand the target language to have hof](https://github.com/soulomoon/arith/tree/master/arith6)
-* (working) [Chapter 7: recursion scheme over the target language](https://github.com/soulomoon/arith/tree/master/arith7)
-* ...
-
-
 In the last chapter, we make it possible to expand the interpreter along with the language in a tagless style, but the price is losing the linter since we use concrete type notation for the interpreter type class.
 In this chapter, we are going to regain the linter by using typeFamilies to abstract out
 the interpreter type class.
