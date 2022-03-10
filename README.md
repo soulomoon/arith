@@ -48,10 +48,7 @@ data Expr a where
   App :: (VC a, VC b) => Expr (b -> a) -> Expr b -> Expr a
 ```
 
-
-
-
-the taget language would be defined in a Gadt way as a higher order functor to fit recursion scheme.
+the target language would be defined in a Gadt way as a higher order functor to fit recursion scheme.
 and also with type families' polymorphic on its phantom type `v`.
 
 ```haskell
